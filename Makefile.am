@@ -20,7 +20,7 @@ EXTRA_DIST = Makefile.old bcomp.el $(lisp_LISP) \
 BUILT_SOURCES = $(srcdir)/navi2ch-version.el $(srcdir)/bcomp.el
 SUBDIRS = contrib doc icons test
 
-$(srcdir)/navi2ch-version.el: @MAINTAINER_MODE_TRUE@ $(srcdir)/navi2ch-version.el.in $(srcdir)/configure.in
+$(srcdir)/navi2ch-version.el: @MAINTAINER_MODE_TRUE@ $(srcdir)/navi2ch-version.el.in $(srcdir)/configure.ac
 	rm -f $@.tmp && \
 	sed -e 's/@\(VERSION\)@/$(VERSION)/' \
 		$(srcdir)/navi2ch-version.el.in > $@.tmp && \
