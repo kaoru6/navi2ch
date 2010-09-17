@@ -43,7 +43,7 @@ DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	mkinstalldirs
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/acinclude.m4 \
-	$(top_srcdir)/configure.in
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -669,7 +669,7 @@ uninstall-info: uninstall-info-recursive
 	uninstall-info-am uninstall-lispDATA uninstall-lispLISP
 
 
-$(srcdir)/navi2ch-version.el: @MAINTAINER_MODE_TRUE@ $(srcdir)/navi2ch-version.el.in $(srcdir)/configure.in
+$(srcdir)/navi2ch-version.el: @MAINTAINER_MODE_TRUE@ $(srcdir)/navi2ch-version.el.in $(srcdir)/configure.ac
 	rm -f $@.tmp && \
 	sed -e 's/@\(VERSION\)@/$(VERSION)/' \
 		$(srcdir)/navi2ch-version.el.in > $@.tmp && \
