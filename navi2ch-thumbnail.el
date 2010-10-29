@@ -108,6 +108,11 @@
   :type 'integer
   :group 'navi2ch)
 
+(defcustom navi2ch-thumbnail-use-mac-sips nil
+  "* サムネイル作成にMacOSXの標準ツールであるsipsを使う"
+  :type 'bool
+  :group 'navi2ch)
+
 (defvar navi2ch-thumbnail-404-list
   (list "/404\.s?html$"
 	"10mai_404\.html$"))
@@ -220,7 +225,7 @@
 			(if (nth 2 image-attr) " GIF ANIME" "")))
       (if (re-search-forward
 	   (concat "h?ttp://\\([^ \t\n\r]+\\."
-		   (regexp-opt navi2ch-browse-url-image-extentions)
+		   (regexp-opt navi2ch-browse-url-image-extentions t)
 		   "\\)") nil t)
 	  (save-excursion
 	    (let ((url (concat "http://" (match-string 1)))
@@ -272,7 +277,7 @@
       (let ((num (navi2ch-article-get-current-number))
 	    (board (cdr (assq 'uri navi2ch-article-current-board)))
 	    (regex (concat "h?ttp://\\([^ \t\n\r]+\\."
-			   (regexp-opt navi2ch-browse-url-image-extentions)
+			   (regexp-opt navi2ch-browse-url-image-extentions t)
 			   "\\)")))
 	(narrow-to-region begin end)
 	(goto-char begin)
@@ -346,31 +351,42 @@
 			 :height navi2ch-thumbnail-thumbsize-height)))
 	 (t
 	  (with-temp-buffer
-	    (if (or (not anime) (not (fboundp 'create-animated-image)))
-		(call-process navi2ch-thumbnail-image-convert-program
-			      nil t nil
-			      "-sample"
-			      (format "%sx%s"
-				      navi2ch-thumbnail-thumbsize-width
-				      navi2ch-thumbnail-thumbsize-height)
-			      file thumb-file)
-	      ;; GIFアニメは1フレームだけを使う
-	      (call-process navi2ch-thumbnail-image-convert-program
-			    nil t nil
-			    "-scene" "0"
-			    "-sample"
-			    (format "%sx%s"
-				    navi2ch-thumbnail-thumbsize-width
-				    navi2ch-thumbnail-thumbsize-height)
-			    file (concat file ".jpg"))
-	      (rename-file (concat file "-0" ".jpg") thumb-file)
+            (cond
+             ;;MacOSXはsipsという標準ツールで画像変換できる
+             ;;GIFアニメ処理は縮小だけでできる(？)
+             (navi2ch-thumbnail-use-mac-sips
+              (call-process "sips" nil t nil
+                            "-s" "format" "jpeg" file "--out" thumb-file)
+              (call-process "sips" nil t nil
+                            "--resampleHeight"
+                            (number-to-string navi2ch-thumbnail-thumbsize-height)
+                            thumb-file "--out" thumb-file))
+             (t
+              (if (or (not anime) (not (fboundp 'create-animated-image)))
+                  (call-process navi2ch-thumbnail-image-convert-program
+                                nil t nil
+                                "-sample"
+                                (format "%sx%s"
+                                        navi2ch-thumbnail-thumbsize-width
+                                        navi2ch-thumbnail-thumbsize-height)
+                                file thumb-file)
+                ;; GIFアニメは1フレームだけを使う
+                (call-process navi2ch-thumbnail-image-convert-program
+                              nil t nil
+                              "-scene" "0"
+                              "-sample"
+                              (format "%sx%s"
+                                      navi2ch-thumbnail-thumbsize-width
+                                      navi2ch-thumbnail-thumbsize-height)
+                              file (concat file ".jpg"))
+                (rename-file (concat file "-0" ".jpg") thumb-file)
 	      
-	      (dolist (delfile (directory-files (file-name-directory thumb-file)
-						t
-						(concat (file-name-nondirectory file)
-							"-.+\.jpg")))
-		(delete-file delfile))
-	      (message "gif anime %s" anime)))
+                (dolist (delfile (directory-files (file-name-directory thumb-file)
+                                                  t
+                                                  (concat (file-name-nondirectory file)
+                                                          "-.+\.jpg")))
+                  (delete-file delfile))
+                (message "gif anime %s" anime)))))
 	  (insert-image (navi2ch-create-image thumb-file))))
 	(add-text-properties (1- (point)) (point)
 			     (list 'link t 'link-head t
@@ -384,7 +400,7 @@
 
 	(when (re-search-forward
 	       (concat "h?ttp://\\([^ \t\n\r]+\\."
-		       (regexp-opt navi2ch-browse-url-image-extentions)
+		       (regexp-opt navi2ch-browse-url-image-extentions t)
 		       "\\)") nil t)
 	  (save-excursion
 	    (let ((url (concat "http://" (match-string 1)))
@@ -598,11 +614,23 @@
 		 navi2ch-thumbnail-image-identify-program)
 	(message "identify called %s" file)
 	(with-temp-buffer
-	  (call-process navi2ch-thumbnail-image-identify-program nil t nil
-			"-quiet" "-format" "\"%n %w %h %b\"" file)
-	  (goto-char (point-min))
-	  (when (re-search-forward
-		 "\\([0-9]+\\) \\([0-9]+\\) \\([0-9]+\\) \\([0-9]+\\)")
-	    (list (string-to-number (match-string 2))
-		  (string-to-number (match-string 3))
-		  (> (string-to-number (match-string 1)) 1))))))))
+          (cond
+           (navi2ch-thumbnail-use-mac-sips
+            (call-process 'sips' nil t nil "-g" "-all" file)
+            (when (re-search-forward
+                   "pixelWidth: \\([0-9]+\\)")
+              (setq width (string-to-number (match-string 1))))
+            (when (re-search-forward
+                   "pixelHeight: \\([0-9]+\\)")
+              (setq height (string-to-number (match-string 1))))
+            ;;anime gifはあきらめる
+              (list width height nil))
+           (t
+            (call-process navi2ch-thumbnail-image-identify-program nil t nil
+                          "-quiet" "-format" "\"%n %w %h %b\"" file)
+            (goto-char (point-min))
+            (when (re-search-forward
+                   "\\([0-9]+\\) \\([0-9]+\\) \\([0-9]+\\) \\([0-9]+\\)")
+              (list (string-to-number (match-string 2))
+                    (string-to-number (match-string 3))
+                    (> (string-to-number (match-string 1)) 1))))))))))
